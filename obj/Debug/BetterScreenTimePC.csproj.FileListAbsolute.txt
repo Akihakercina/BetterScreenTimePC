@@ -1,0 +1,10 @@
+C:\Users\Aki\BetterScreenTimePC\BetterScreenTimePC\obj\Debug\BetterScreenTimePC.csproj.AssemblyReference.cache
+C:\Users\Aki\BetterScreenTimePC\BetterScreenTimePC\bin\Debug\BetterScreenTimePC.exe.config
+C:\Users\Aki\BetterScreenTimePC\BetterScreenTimePC\bin\Debug\BetterScreenTimePC.exe
+C:\Users\Aki\BetterScreenTimePC\BetterScreenTimePC\bin\Debug\BetterScreenTimePC.pdb
+C:\Users\Aki\BetterScreenTimePC\BetterScreenTimePC\obj\Debug\BetterScreenTimePC.Properties.Resources.resources
+C:\Users\Aki\BetterScreenTimePC\BetterScreenTimePC\obj\Debug\BetterScreenTimePC.csproj.GenerateResource.cache
+C:\Users\Aki\BetterScreenTimePC\BetterScreenTimePC\obj\Debug\BetterScreenTimePC.csproj.CoreCompileInputs.cache
+C:\Users\Aki\BetterScreenTimePC\BetterScreenTimePC\obj\Debug\BetterScreenTimePC.exe
+C:\Users\Aki\BetterScreenTimePC\BetterScreenTimePC\obj\Debug\BetterScreenTimePC.pdb
+C:\Users\Aki\BetterScreenTimePC\BetterScreenTimePC\obj\Debug\BetterScreenTimePC.exe.config
