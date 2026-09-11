@@ -10,17 +10,33 @@ namespace BetterScreenTimePC
         private double[,] A = new double[3, 3];
         private double[] b = new double[3];
 
+        // Tracks whether closing is happening through our own Submit/Give-up
+        // buttons (which set DialogResult first) - anything else (Alt+F4,
+        // task-switcher close, etc.) gets blocked in FormClosing below.
+        private bool _closingViaButton;
+
         public ChallengeForm()
         {
             InitializeComponent();
             this.Load += ChallengeForm_Load;
             btnSubmit.Click += BtnSubmit_Click;
             btnGiveUp.Click += BtnGiveUp_Click;
+            this.FormClosing += ChallengeForm_FormClosing;
 
-            // Ensure this pops in front regardless of what triggered it
-            // (a just-launched app or a browser navigation).
+            // Borderless + fullscreen across ALL monitors + always on top, so
+            // there's no title bar to drag it aside with and nothing visible
+            // to click around it. This stops the simple "move the window and
+            // keep using the app underneath" bypass. It does NOT block
+            // Alt-Tab/Win+D switching focus to another window - doing that
+            // reliably needs a low-level global keyboard hook, a bigger step
+            // with its own antivirus-suspicion tradeoffs (similar to what we
+            // saw with the hosts file earlier), not added here.
+            FormBorderStyle = FormBorderStyle.None;
+            ControlBox = false;
+            ShowInTaskbar = false;
             TopMost = true;
-            StartPosition = FormStartPosition.CenterScreen;
+            StartPosition = FormStartPosition.Manual;
+            Bounds = SystemInformation.VirtualScreen; // covers every monitor, not just the primary one
         }
 
         private void ChallengeForm_Load(object sender, EventArgs e)
@@ -29,8 +45,23 @@ namespace BetterScreenTimePC
             RenderSystem();
         }
 
+        private void ChallengeForm_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            if (!_closingViaButton)
+                e.Cancel = true; // block Alt+F4 / any close that didn't go through Submit or Give up
+        }
+
+        protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
+        {
+            // Swallow Alt+F4 explicitly (belt-and-suspenders alongside FormClosing above).
+            if (keyData == (Keys.Alt | Keys.F4))
+                return true; // true = handled, suppresses the default close behavior
+            return base.ProcessCmdKey(ref msg, keyData);
+        }
+
         private void BtnGiveUp_Click(object sender, EventArgs e)
         {
+            _closingViaButton = true;
             this.DialogResult = DialogResult.Abort;
             this.Close();
         }
@@ -44,6 +75,7 @@ namespace BetterScreenTimePC
             var ok = Math.Abs(x - solution[0]) < 1e-3 && Math.Abs(y - solution[1]) < 1e-3 && Math.Abs(z - solution[2]) < 1e-3;
             if (ok)
             {
+                _closingViaButton = true;
                 this.DialogResult = DialogResult.OK;
                 this.Close();
             }

@@ -26,6 +26,12 @@ namespace FocusBlocker.Services
         public ChallengeRequestedEventArgs(string domain) { Domain = domain; }
     }
 
+    public class GrantExpiredEventArgs : EventArgs
+    {
+        public string Domain { get; }
+        public GrantExpiredEventArgs(string domain) { Domain = domain; }
+    }
+
     /// <summary>
     /// A local proxy that intercepts outbound web connections (HTTP + HTTPS via
     /// CONNECT) and decides whether to let them through, based on Mode:
@@ -71,6 +77,9 @@ namespace FocusBlocker.Services
         /// before touching any Forms.
         /// </summary>
         public event EventHandler<ChallengeRequestedEventArgs> ChallengeRequested;
+
+        /// <summary>Fired when an active grant expires while a tunnel for that domain is still open.</summary>
+        public event EventHandler<GrantExpiredEventArgs> GrantExpired;
 
         public WebsiteGuardProxy(int port = 8891)
         {
@@ -166,10 +175,10 @@ namespace FocusBlocker.Services
                     port = 80;
                 }
 
-                bool allowed = IsRequestAllowed(host, out bool shouldRaiseChallenge);
+                bool allowed = IsRequestAllowed(host, out bool shouldRaiseChallenge, out string matchedRootDomain);
 
                 if (shouldRaiseChallenge)
-                    ChallengeRequested?.Invoke(this, new ChallengeRequestedEventArgs(host.ToLowerInvariant()));
+                    ChallengeRequested?.Invoke(this, new ChallengeRequestedEventArgs(matchedRootDomain));
 
                 if (!allowed)
                 {
@@ -178,34 +187,83 @@ namespace FocusBlocker.Services
                     return;
                 }
 
-                try
+                // If this connection is only open because of a temporary grant
+                // (matchedRootDomain != null means it's on the blocklist, and we
+                // only got this far because it's currently granted), watch the
+                // grant while the tunnel stays open and forcibly tear it down the
+                // moment it expires - otherwise a long-lived HTTPS connection
+                // (HTTP/2 reuse, keep-alive) could keep working indefinitely past
+                // the 5 minutes, since without this the access check only ever
+                // runs once, at connection setup.
+                using (var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(token))
                 {
-                    using (var remote = new TcpClient())
-                    {
-                        await remote.ConnectAsync(host, port);
-                        using (NetworkStream remoteStream = remote.GetStream())
-                        {
-                            if (isConnect)
-                            {
-                                byte[] ok = Encoding.ASCII.GetBytes("HTTP/1.1 200 Connection Established\r\n\r\n");
-                                await clientStream.WriteAsync(ok, 0, ok.Length, token);
-                            }
-                            else
-                            {
-                                await remoteStream.WriteAsync(buffer, 0, bytesRead, token);
-                            }
+                    Task watchdog = matchedRootDomain != null
+                        ? WatchGrantAsync(matchedRootDomain, linkedCts)
+                        : Task.CompletedTask;
 
-                            Task clientToRemote = clientStream.CopyToAsync(remoteStream, 81920, token);
-                            Task remoteToClient = remoteStream.CopyToAsync(clientStream, 81920, token);
-                            await Task.WhenAny(clientToRemote, remoteToClient);
+                    try
+                    {
+                        using (var remote = new TcpClient())
+                        {
+                            await remote.ConnectAsync(host, port);
+                            using (NetworkStream remoteStream = remote.GetStream())
+                            {
+                                if (isConnect)
+                                {
+                                    byte[] ok = Encoding.ASCII.GetBytes("HTTP/1.1 200 Connection Established\r\n\r\n");
+                                    await clientStream.WriteAsync(ok, 0, ok.Length, linkedCts.Token);
+                                }
+                                else
+                                {
+                                    await remoteStream.WriteAsync(buffer, 0, bytesRead, linkedCts.Token);
+                                }
+
+                                Task clientToRemote = clientStream.CopyToAsync(remoteStream, 81920, linkedCts.Token);
+                                Task remoteToClient = remoteStream.CopyToAsync(clientStream, 81920, linkedCts.Token);
+                                await Task.WhenAny(clientToRemote, remoteToClient);
+                            }
                         }
                     }
-                }
-                catch
-                {
-                    // Remote unreachable, connection reset, etc. - just drop it.
+                    catch
+                    {
+                        // Remote unreachable, connection reset, grant expired
+                        // (cancellation), etc. - just drop it either way.
+                    }
+                    finally
+                    {
+                        linkedCts.Cancel(); // make sure the watchdog loop exits promptly
+                        try { await watchdog; } catch { /* ignore */ }
+                    }
                 }
             }
+        }
+
+        /// <summary>
+        /// While a tunnel for a grant-dependent domain is open, checks every
+        /// second whether the grant is still valid. Cancels linkedCts the moment
+        /// it expires, which tears down the tunnel's read/write operations and
+        /// forces the browser to reconnect (and get re-checked) next time.
+        /// </summary>
+        private async Task WatchGrantAsync(string rootDomain, CancellationTokenSource linkedCts)
+        {
+            try
+            {
+                while (!linkedCts.IsCancellationRequested)
+                {
+                    await Task.Delay(1000, linkedCts.Token);
+
+                    bool stillGranted = _temporaryGrants.TryGetValue(rootDomain, out DateTime expiry) &&
+                                         expiry > DateTime.UtcNow;
+
+                    if (!stillGranted)
+                    {
+                        GrantExpired?.Invoke(this, new GrantExpiredEventArgs(rootDomain));
+                        linkedCts.Cancel();
+                        return;
+                    }
+                }
+            }
+            catch (OperationCanceledException) { /* expected on shutdown/teardown */ }
         }
 
         private static string ExtractHostHeader(string requestHeader)
@@ -218,33 +276,40 @@ namespace FocusBlocker.Services
             return string.Empty;
         }
 
-        private bool IsRequestAllowed(string host, out bool shouldRaiseChallenge)
+        private bool IsRequestAllowed(string host, out bool shouldRaiseChallenge, out string matchedRootDomain)
         {
             shouldRaiseChallenge = false;
+            matchedRootDomain = null;
 
             if (string.IsNullOrWhiteSpace(host))
                 return false;
 
             host = host.ToLowerInvariant();
-            bool matchesList = Domains.Any(d =>
+
+            // The domain from Domains that matched (root domain, not the exact
+            // requested host) - grants/challenges are tracked against THIS, so
+            // solving once covers every subdomain of the same blocked site.
+            string matched = Domains.FirstOrDefault(d =>
                 host.Equals(d, StringComparison.OrdinalIgnoreCase) ||
                 host.EndsWith("." + d, StringComparison.OrdinalIgnoreCase));
 
             if (Mode == ProxyMode.Allowlist)
-                return matchesList; // no challenge logic in allowlist mode
+                return matched != null; // no challenge logic in allowlist mode
 
             // Blocklist mode:
-            if (!matchesList)
+            if (matched == null)
                 return true; // not on the blocked list - allow freely
 
-            if (_temporaryGrants.TryGetValue(host, out DateTime expiry) && expiry > DateTime.UtcNow)
+            matchedRootDomain = matched;
+
+            if (_temporaryGrants.TryGetValue(matched, out DateTime expiry) && expiry > DateTime.UtcNow)
                 return true; // still within an active grace period
 
             lock (_pendingLock)
             {
-                if (!_pendingChallenges.Contains(host))
+                if (!_pendingChallenges.Contains(matched))
                 {
-                    _pendingChallenges.Add(host);
+                    _pendingChallenges.Add(matched);
                     shouldRaiseChallenge = true;
                 }
             }

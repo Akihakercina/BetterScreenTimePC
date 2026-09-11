@@ -49,6 +49,7 @@
   <ItemGroup>
     <Compile Include="BlockedApp.cs" />
     <Compile Include="BlockedWebsite.cs" />
+    <Compile Include="BrowserRefreshHelper.cs" />
     <Compile Include="FocusScheduler.cs" />
     <Compile Include="FocusSession.cs" />
     <Compile Include="Form1.cs">

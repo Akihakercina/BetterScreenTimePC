@@ -27,6 +27,14 @@ namespace FocusBlocker.Services
         private Thread _pollingThread;
         private volatile bool _pollingActive;
         private readonly HashSet<int> _alreadyHandledPids = new HashSet<int>();
+        private System.Threading.Timer _grantExpiryWatchdog;
+
+        // Process-name -> UTC time until which a solved challenge grants a
+        // pass, so a multi-process app (new renderer/helper processes spawning
+        // after the main one) doesn't re-challenge every new process it opens
+        // once you've already solved it once. Mirrors WebsiteGuardProxy's grants.
+        private readonly Dictionary<string, DateTime> _temporaryGrantsUtc =
+            new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
 
         public int PollingIntervalMs { get; set; } = 1000;
         public List<BlockedApp> BlockedApps { get; set; } = new List<BlockedApp>();
@@ -39,6 +47,15 @@ namespace FocusBlocker.Services
         {
             if (TryStartWmiWatcher()) { IsUsingWmi = true; }
             else { IsUsingWmi = false; StartPolling(); }
+
+            // Checks every 2 seconds for expired grants and, if the app is
+            // still running under that name, fires a fresh challenge directly -
+            // this is necessary because a long-lived single process (no new
+            // tabs/helpers spawning) would otherwise never get re-evaluated:
+            // _alreadyHandledPids marks a PID as handled permanently, so normal
+            // detection alone can't catch "this grant just expired" for a
+            // process that's been running the whole time.
+            _grantExpiryWatchdog = new System.Threading.Timer(CheckExpiredGrants, null, 2000, 2000);
         }
 
         public void Stop()
@@ -46,6 +63,9 @@ namespace FocusBlocker.Services
             StopWmiWatcher();
             StopPolling();
             _alreadyHandledPids.Clear();
+            lock (_temporaryGrantsUtc) { _temporaryGrantsUtc.Clear(); }
+            _grantExpiryWatchdog?.Dispose();
+            _grantExpiryWatchdog = null;
         }
 
         private bool TryStartWmiWatcher()
@@ -143,7 +163,74 @@ namespace FocusBlocker.Services
 
             lock (_alreadyHandledPids) { _alreadyHandledPids.Add(processId); }
 
+            // Already solved recently for this app name? Let this new process
+            // (e.g. a new tab's renderer, a background helper) through silently
+            // instead of challenging again.
+            lock (_temporaryGrantsUtc)
+            {
+                if (_temporaryGrantsUtc.TryGetValue(match.ProcessName, out DateTime expiry) && expiry > DateTime.UtcNow)
+                    return;
+            }
+
             BlockedAppLaunched?.Invoke(this, new BlockedAppDetectedEventArgs(match, processId));
+        }
+
+        /// <summary>Call after the user solves the challenge for this app - grants new processes of the same name a pass for the given duration.</summary>
+        public void GrantTemporaryAccess(string processName, TimeSpan duration)
+        {
+            if (string.IsNullOrWhiteSpace(processName)) return;
+            lock (_temporaryGrantsUtc)
+            {
+                _temporaryGrantsUtc[processName] = DateTime.UtcNow.Add(duration);
+            }
+        }
+
+        /// <summary>
+        /// Runs on a background timer. For any grant that just expired, checks
+        /// whether the app is still running under that name and, if so, fires
+        /// BlockedAppLaunched directly for each currently-running matching
+        /// process - bypassing normal detection entirely, since those PIDs may
+        /// already be marked "handled" from before and would otherwise never
+        /// trigger a fresh challenge on their own.
+        /// </summary>
+        private void CheckExpiredGrants(object state)
+        {
+            if (!IsArmed) return;
+
+            List<string> expiredNames;
+            lock (_temporaryGrantsUtc)
+            {
+                expiredNames = _temporaryGrantsUtc
+                    .Where(kv => kv.Value <= DateTime.UtcNow)
+                    .Select(kv => kv.Key)
+                    .ToList();
+
+                foreach (string name in expiredNames)
+                    _temporaryGrantsUtc.Remove(name);
+            }
+
+            foreach (string processName in expiredNames)
+            {
+                BlockedApp match = BlockedApps?.FirstOrDefault(a =>
+                    string.Equals(a.ProcessName, processName, StringComparison.OrdinalIgnoreCase));
+                if (match == null) continue;
+
+                Process[] runningProcesses;
+                try { runningProcesses = Process.GetProcessesByName(processName); }
+                catch { continue; }
+
+                foreach (var proc in runningProcesses)
+                {
+                    try
+                    {
+                        BlockedAppLaunched?.Invoke(this, new BlockedAppDetectedEventArgs(match, proc.Id));
+                    }
+                    finally
+                    {
+                        proc.Dispose();
+                    }
+                }
+            }
         }
 
         public static void KillProcess(int processId)

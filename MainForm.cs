@@ -24,6 +24,7 @@ namespace BetterScreenTimePC
         private System.Windows.Forms.Timer _concentrationCountdownTimer;
 
         private static readonly TimeSpan WebsiteChallengeGrantDuration = TimeSpan.FromMinutes(5);
+        private static readonly TimeSpan AppChallengeGrantDuration = TimeSpan.FromMinutes(5);
 
         private List<InstalledProgram> _installedPrograms = new List<InstalledProgram>();
         private List<BlockedWebsite> _currentBlockedWebsites = new List<BlockedWebsite>();
@@ -242,6 +243,7 @@ namespace BetterScreenTimePC
             _processWatcher.Start();
 
             _webGuardProxy.ChallengeRequested += OnWebsiteChallengeRequested;
+            _webGuardProxy.GrantExpired += OnWebsiteGrantExpired;
 
             _focusScheduler.FocusStarted += (s, e) =>
             {
@@ -351,7 +353,17 @@ namespace BetterScreenTimePC
         /// </summary>
         private void OnBlockedAppLaunched(object sender, BlockedAppDetectedEventArgs e)
         {
-            if (InvokeRequired) { Invoke(new Action(() => OnBlockedAppLaunched(sender, e))); return; }
+            // BeginInvoke (not Invoke) is important here: Invoke would block the
+            // calling thread (the polling loop, or a WMI callback) until the
+            // dialog closes - which, for the polling loop specifically, stalls
+            // it mid-foreach and prevents it from ever reaching other already-
+            // running matching processes (e.g. Chrome's several chrome.exe
+            // instances) until after the first dialog closes, causing them to
+            // each pop their own dialog in sequence instead of being batched.
+            // BeginInvoke lets the loop keep going; the modal ShowDialog() below
+            // still pumps these queued calls while open, so they get folded into
+            // the same pending-PID list correctly.
+            if (InvokeRequired) { BeginInvoke(new Action(() => OnBlockedAppLaunched(sender, e))); return; }
 
             string key = e.App.ProcessName;
 
@@ -367,16 +379,25 @@ namespace BetterScreenTimePC
             {
                 var result = challenge.ShowDialog();
 
-                var pids = _pendingAppChallengePids[key];
                 _pendingAppChallengePids.Remove(key);
 
                 if (result == DialogResult.Abort)
                 {
-                    foreach (int pid in pids)
-                        ProcessWatcher.KillProcess(pid);
+                    // Kill EVERY currently-running process with this name, not
+                    // just the one(s) that triggered this particular detection -
+                    // otherwise, if this challenge fired for a new process spawned
+                    // after an earlier grant expired, the original processes from
+                    // that earlier launch are still running untouched and the app
+                    // barely looks closed at all.
+                    ProcessWatcher.KillAllProcessesByName(key);
                 }
-                // DialogResult.OK -> solved, let all of them (including any that
-                // launched while the dialog was open) keep running.
+                else
+                {
+                    // Solved - let all of them keep running, and grant a pass so
+                    // new processes of this same app (new tabs/helpers spawning
+                    // later) don't re-trigger the challenge for a while.
+                    _processWatcher.GrantTemporaryAccess(key, AppChallengeGrantDuration);
+                }
             }
         }
 
@@ -388,12 +409,18 @@ namespace BetterScreenTimePC
         /// </summary>
         private void OnWebsiteChallengeRequested(object sender, ChallengeRequestedEventArgs e)
         {
-            if (InvokeRequired) { Invoke(new Action(() => OnWebsiteChallengeRequested(sender, e))); return; }
+            if (InvokeRequired) { BeginInvoke(new Action(() => OnWebsiteChallengeRequested(sender, e))); return; }
 
             if (_domainsWithOpenChallenge.Contains(e.Domain))
                 return;
 
             _domainsWithOpenChallenge.Add(e.Domain);
+
+            // Capture whichever browser window is currently in front BEFORE our
+            // own dialog steals focus - checking again after the dialog closes
+            // isn't reliable, since closing a modal dialog tends to hand focus
+            // back to its own owner (this app) rather than the previous window.
+            IntPtr browserWindow = BrowserRefreshHelper.CaptureForegroundBrowserWindow();
 
             using (var challenge = new ChallengeForm())
             {
@@ -404,7 +431,26 @@ namespace BetterScreenTimePC
                     _webGuardProxy.GrantTemporaryAccess(e.Domain, WebsiteChallengeGrantDuration);
                 else
                     _webGuardProxy.DismissChallenge(e.Domain);
+
+                // Whether solved or given up, whatever was already rendered in the
+                // browser is now stale (newly allowed, or should show as blocked) -
+                // nudge that captured browser window to reload so it actually
+                // reflects the new state instead of just sitting there unchanged.
+                BrowserRefreshHelper.RefreshWindow(browserWindow);
             }
+        }
+
+        /// <summary>
+        /// Fires when a temporary website grant expires while its tunnel is still
+        /// open (WebsiteGuardProxy already tears the connection down itself) -
+        /// this just nudges the browser to reload so the now-blocked page
+        /// actually shows that, instead of the stale content sitting there.
+        /// </summary>
+        private void OnWebsiteGrantExpired(object sender, GrantExpiredEventArgs e)
+        {
+            if (InvokeRequired) { BeginInvoke(new Action(() => OnWebsiteGrantExpired(sender, e))); return; }
+
+            BrowserRefreshHelper.TryRefreshForegroundBrowser();
         }
 
         protected override void OnFormClosing(FormClosingEventArgs e)
