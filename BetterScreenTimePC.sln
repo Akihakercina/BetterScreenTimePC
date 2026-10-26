@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.37614.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BetterScreenTimePC", "BetterScreenTimePC\BetterScreenTimePC.csproj", "{F3BB211B-8661-4014-B37B-865336315EED}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BlockerWatchdog", "BlockerWatchdog\BlockerWatchdog.csproj", "{1452DC98-743E-4BB9-B52E-B18626372EE5}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F3BB211B-8661-4014-B37B-865336315EED}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F3BB211B-8661-4014-B37B-865336315EED}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F3BB211B-8661-4014-B37B-865336315EED}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F3BB211B-8661-4014-B37B-865336315EED}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1452DC98-743E-4BB9-B52E-B18626372EE5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1452DC98-743E-4BB9-B52E-B18626372EE5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1452DC98-743E-4BB9-B52E-B18626372EE5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1452DC98-743E-4BB9-B52E-B18626372EE5}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {3F5BEEB3-DDB5-44A8-A901-BB2A87D9EAD0}
+	EndGlobalSection
+EndGlobal

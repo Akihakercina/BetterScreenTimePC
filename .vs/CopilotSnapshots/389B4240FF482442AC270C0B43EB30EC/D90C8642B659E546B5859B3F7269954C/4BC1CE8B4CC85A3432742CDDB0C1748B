@@ -1,0 +1,264 @@
+﻿using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Windows.Forms;
+using Microsoft.Win32;
+
+namespace BlockerApp
+{
+    public partial class MainForm : Form
+    {
+        private readonly string storageFolder;
+        private readonly string appsFile;
+        private readonly string sitesFile;
+        private readonly string focusFile;
+        private readonly string concentrationFile;
+
+        private Dictionary<string, DateTime> tempAllowed = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
+        private Timer cleanupTimer = new Timer();
+
+        public MainForm()
+        {
+            InitializeComponent();
+            storageFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BlockerApp");
+            appsFile = Path.Combine(storageFolder, "blocked_apps.txt");
+            sitesFile = Path.Combine(storageFolder, "blocked_sites.txt");
+            focusFile = Path.Combine(storageFolder, "focus_time.txt");
+            concentrationFile = Path.Combine(storageFolder, "concentration_allowed.txt");
+
+            this.Load += MainForm_Load;
+            btnSaveApps.Click += BtnSaveApps_Click;
+            btnAddWebsite.Click += BtnAddWebsite_Click;
+            btnRemoveWebsite.Click += BtnRemoveWebsite_Click;
+            btnSaveWebsites.Click += BtnSaveWebsites_Click;
+            lbWebsites.DoubleClick += LbWebsites_DoubleClick;
+            clbApps.DoubleClick += ClbApps_DoubleClick;
+            btnSaveFocus.Click += BtnSaveFocus_Click;
+            btnAddAllowed.Click += BtnAddAllowed_Click;
+            btnRemoveAllowed.Click += BtnRemoveAllowed_Click;
+            btnStartConcentration.Click += BtnStartConcentration_Click;
+            btnSaveConcentration.Click += BtnSaveConcentration_Click;
+
+            cleanupTimer.Interval = 60 * 1000; // 1 minute
+            cleanupTimer.Tick += CleanupTimer_Tick;
+            cleanupTimer.Start();
+        }
+
+        private void CleanupTimer_Tick(object sender, EventArgs e)
+        {
+            var now = DateTime.Now;
+            var expired = tempAllowed.Where(kv => kv.Value <= now).Select(kv => kv.Key).ToList();
+            foreach (var k in expired)
+                tempAllowed.Remove(k);
+        }
+
+        private void MainForm_Load(object sender, EventArgs e)
+        {
+            Directory.CreateDirectory(storageFolder);
+            LoadInstalledApps();
+            LoadBlockedApps();
+            LoadBlockedWebsites();
+            LoadFocusTime();
+            LoadConcentrationAllowed();
+        }
+
+        private void LoadInstalledApps()
+        {
+            // Try to enumerate uninstall registry keys to get installed applications.
+            var apps = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            void readKey(RegistryKey baseKey, string subKey)
+            {
+                try
+                {
+                    using (var key = baseKey.OpenSubKey(subKey))
+                    {
+                        if (key == null) return;
+                        foreach (var sub in key.GetSubKeyNames())
+                        {
+                            try
+                            {
+                                using (var appKey = key.OpenSubKey(sub))
+                                {
+                                    var display = appKey.GetValue("DisplayName") as string;
+                                    if (!string.IsNullOrEmpty(display)) apps.Add(display);
+                                }
+                            }
+                            catch { }
+                        }
+                    }
+                }
+                catch { }
+            }
+
+            readKey(Registry.LocalMachine, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall");
+            readKey(Registry.LocalMachine, "SOFTWARE\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall");
+            readKey(Registry.CurrentUser, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Uninstall");
+
+            clbApps.Items.Clear();
+            foreach (var a in apps.OrderBy(x => x))
+                clbApps.Items.Add(a, false);
+        }
+
+        private void LoadBlockedApps()
+        {
+            if (!File.Exists(appsFile)) return;
+            var lines = File.ReadAllLines(appsFile).Where(l => !string.IsNullOrWhiteSpace(l)).Select(l => l.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
+            for (int i = 0; i < clbApps.Items.Count; i++)
+            {
+                var item = clbApps.Items[i].ToString();
+                clbApps.SetItemChecked(i, lines.Contains(item));
+            }
+        }
+
+        private void BtnSaveApps_Click(object sender, EventArgs e)
+        {
+            var blocked = clbApps.CheckedItems.Cast<object>().Select(o => o.ToString()).ToArray();
+            File.WriteAllLines(appsFile, blocked);
+            MessageBox.Show("Blocked apps saved.", "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private void BtnAddWebsite_Click(object sender, EventArgs e)
+        {
+            var w = tbWebsite.Text?.Trim();
+            if (string.IsNullOrEmpty(w)) return;
+            if (!lbWebsites.Items.Contains(w)) lbWebsites.Items.Add(w);
+            tbWebsite.Clear();
+        }
+
+        private void BtnRemoveWebsite_Click(object sender, EventArgs e)
+        {
+            var sel = lbWebsites.SelectedItems.Cast<object>().ToList();
+            foreach (var s in sel) lbWebsites.Items.Remove(s);
+        }
+
+        private void BtnSaveWebsites_Click(object sender, EventArgs e)
+        {
+            var lines = lbWebsites.Items.Cast<object>().Select(o => o.ToString()).ToArray();
+            File.WriteAllLines(sitesFile, lines);
+            MessageBox.Show("Blocked websites saved.", "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private void LoadBlockedWebsites()
+        {
+            lbWebsites.Items.Clear();
+            if (!File.Exists(sitesFile)) return;
+            var lines = File.ReadAllLines(sitesFile).Where(l => !string.IsNullOrWhiteSpace(l)).Select(l => l.Trim());
+            foreach (var l in lines) lbWebsites.Items.Add(l);
+        }
+
+        private void LbWebsites_DoubleClick(object sender, EventArgs e)
+        {
+            if (lbWebsites.SelectedItem == null) return;
+            var site = lbWebsites.SelectedItem.ToString();
+            if (tempAllowed.TryGetValue(site, out var until) && until > DateTime.Now)
+            {
+                MessageBox.Show($"Site already unlocked until {until}.");
+                return;
+            }
+
+            using (var c = new ChallengeForm())
+            {
+                var dr = c.ShowDialog(this);
+                if (dr == DialogResult.OK)
+                {
+                    tempAllowed[site] = DateTime.Now.AddMinutes(5);
+                    MessageBox.Show($"{site} unlocked for 5 minutes.");
+                }
+                else if (dr == DialogResult.Abort)
+                {
+                    MessageBox.Show($"Give up: please close the site or app manually.");
+                }
+            }
+        }
+
+        private void ClbApps_DoubleClick(object sender, EventArgs e)
+        {
+            if (clbApps.SelectedItem == null) return;
+            var app = clbApps.SelectedItem.ToString();
+            if (tempAllowed.TryGetValue(app, out var until) && until > DateTime.Now)
+            {
+                MessageBox.Show($"App already unlocked until {until}.");
+                return;
+            }
+            using (var c = new ChallengeForm())
+            {
+                var dr = c.ShowDialog(this);
+                if (dr == DialogResult.OK)
+                {
+                    tempAllowed[app] = DateTime.Now.AddMinutes(5);
+                    MessageBox.Show($"{app} unlocked for 5 minutes.");
+                }
+                else if (dr == DialogResult.Abort)
+                {
+                    MessageBox.Show($"Give up: please close the site or app manually.");
+                }
+            }
+        }
+
+        private void BtnSaveFocus_Click(object sender, EventArgs e)
+        {
+            var s = dtpStart.Value.ToString("HH:mm");
+            var t = dtpEnd.Value.ToString("HH:mm");
+            File.WriteAllLines(focusFile, new[] { s, t });
+            MessageBox.Show("Focus time saved.", "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private void LoadFocusTime()
+        {
+            if (!File.Exists(focusFile)) return;
+            var lines = File.ReadAllLines(focusFile);
+            if (lines.Length >= 2)
+            {
+                if (TimeSpan.TryParse(lines[0], out var st)) dtpStart.Value = DateTime.Today.Add(st);
+                if (TimeSpan.TryParse(lines[1], out var et)) dtpEnd.Value = DateTime.Today.Add(et);
+            }
+        }
+
+        private void BtnAddAllowed_Click(object sender, EventArgs e)
+        {
+            var w = tbAllowedSite.Text?.Trim();
+            if (string.IsNullOrEmpty(w)) return;
+            if (!lbAllowed.Items.Contains(w)) lbAllowed.Items.Add(w);
+            tbAllowedSite.Clear();
+        }
+
+        private void BtnRemoveAllowed_Click(object sender, EventArgs e)
+        {
+            var sel = lbAllowed.SelectedItems.Cast<object>().ToList();
+            foreach (var s in sel) lbAllowed.Items.Remove(s);
+        }
+
+        private void BtnStartConcentration_Click(object sender, EventArgs e)
+        {
+            var minutes = (int)nudDuration.Value;
+            btnStartConcentration.Enabled = false;
+            MessageBox.Show($"Concentration mode started for {minutes} minutes. Only allowed sites are accessible (conceptually).", "Concentration", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            var t = new Timer();
+            t.Interval = minutes * 60 * 1000;
+            t.Tick += (s, ev) =>
+            {
+                t.Stop();
+                btnStartConcentration.Enabled = true;
+                MessageBox.Show("Concentration period ended.", "Concentration", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            };
+            t.Start();
+        }
+
+        private void BtnSaveConcentration_Click(object sender, EventArgs e)
+        {
+            var lines = lbAllowed.Items.Cast<object>().Select(o => o.ToString()).ToArray();
+            File.WriteAllLines(concentrationFile, lines);
+            MessageBox.Show("Concentration allowed list saved.", "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private void LoadConcentrationAllowed()
+        {
+            lbAllowed.Items.Clear();
+            if (!File.Exists(concentrationFile)) return;
+            var lines = File.ReadAllLines(concentrationFile).Where(l => !string.IsNullOrWhiteSpace(l)).Select(l => l.Trim());
+            foreach (var l in lines) lbAllowed.Items.Add(l);
+        }
+    }
+}
