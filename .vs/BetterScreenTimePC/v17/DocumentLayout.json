@@ -3,7 +3,11 @@
   "WorkspaceRootPath": "C:\\Users\\Aki\\BetterScreenTimePC\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{F3BB211B-8661-4014-B37B-865336315EED}|BetterScreenTimePC\\BetterScreenTimePC.csproj|C:\\Users\\Aki\\BetterScreenTimePC\\betterscreentimepc\\challengeform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "AbsoluteMoniker": "D:0:0:{F3BB211B-8661-4014-B37B-865336315EED}|BetterScreenTimePC\\BetterScreenTimePC.csproj|C:\\Users\\Aki\\BetterScreenTimePC\\betterscreentimepc\\mainform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{F3BB211B-8661-4014-B37B-865336315EED}|BetterScreenTimePC\\BetterScreenTimePC.csproj|solutionrelative:betterscreentimepc\\mainform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{F3BB211B-8661-4014-B37B-865336315EED}|BetterScreenTimePC\\BetterScreenTimePC.csproj|c:\\users\\aki\\betterscreentimepc\\betterscreentimepc\\challengeform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{F3BB211B-8661-4014-B37B-865336315EED}|BetterScreenTimePC\\BetterScreenTimePC.csproj|solutionrelative:betterscreentimepc\\challengeform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
@@ -13,10 +17,6 @@
     {
       "AbsoluteMoniker": "D:0:0:{F3BB211B-8661-4014-B37B-865336315EED}|BetterScreenTimePC\\BetterScreenTimePC.csproj|C:\\Users\\Aki\\BetterScreenTimePC\\betterscreentimepc\\mainform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form",
       "RelativeMoniker": "D:0:0:{F3BB211B-8661-4014-B37B-865336315EED}|BetterScreenTimePC\\BetterScreenTimePC.csproj|solutionrelative:betterscreentimepc\\mainform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}|Form"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{F3BB211B-8661-4014-B37B-865336315EED}|BetterScreenTimePC\\BetterScreenTimePC.csproj|c:\\users\\aki\\betterscreentimepc\\betterscreentimepc\\mainform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{F3BB211B-8661-4014-B37B-865336315EED}|BetterScreenTimePC\\BetterScreenTimePC.csproj|solutionrelative:betterscreentimepc\\mainform.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{1452DC98-743E-4BB9-B52E-B18626372EE5}|BlockerWatchdog\\BlockerWatchdog.csproj|C:\\Users\\Aki\\BetterScreenTimePC\\blockerwatchdog\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
@@ -74,7 +74,7 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 15,
+          "SelectedChildIndex": 16,
           "Children": [
             {
               "$type": "Bookmark",
@@ -226,7 +226,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 3,
               "Title": "MainForm.cs [Design]",
               "DocumentMoniker": "C:\\Users\\Aki\\BetterScreenTimePC\\BetterScreenTimePC\\MainForm.cs",
               "RelativeDocumentMoniker": "BetterScreenTimePC\\MainForm.cs",
@@ -238,7 +238,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 2,
               "Title": "ChallengeForm.cs [Design]",
               "DocumentMoniker": "C:\\Users\\Aki\\BetterScreenTimePC\\BetterScreenTimePC\\ChallengeForm.cs",
               "RelativeDocumentMoniker": "BetterScreenTimePC\\ChallengeForm.cs",
@@ -250,26 +250,26 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 1,
               "Title": "ChallengeForm.cs",
               "DocumentMoniker": "C:\\Users\\Aki\\BetterScreenTimePC\\BetterScreenTimePC\\ChallengeForm.cs",
               "RelativeDocumentMoniker": "BetterScreenTimePC\\ChallengeForm.cs",
               "ToolTip": "C:\\Users\\Aki\\BetterScreenTimePC\\BetterScreenTimePC\\ChallengeForm.cs",
               "RelativeToolTip": "BetterScreenTimePC\\ChallengeForm.cs",
-              "ViewState": "AgIAABAAAAAAAAAAAAAAABwAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAI8AAAAAAAAAAAAAABwAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2026-09-08T20:13:59.813Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 0,
               "Title": "MainForm.cs",
               "DocumentMoniker": "C:\\Users\\Aki\\BetterScreenTimePC\\BetterScreenTimePC\\MainForm.cs",
               "RelativeDocumentMoniker": "BetterScreenTimePC\\MainForm.cs",
               "ToolTip": "C:\\Users\\Aki\\BetterScreenTimePC\\BetterScreenTimePC\\MainForm.cs",
               "RelativeToolTip": "BetterScreenTimePC\\MainForm.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAK4AAABSAAAAAAAAAA==",
+              "ViewState": "AgIAAPUAAAAAAAAAAAAAANoAAAAoAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2026-09-08T20:04:25.908Z",
               "EditorCaption": ""

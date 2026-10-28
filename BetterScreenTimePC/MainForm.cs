@@ -216,6 +216,7 @@ namespace BetterScreenTimePC
             lblConcentrationRemaining.Text = "";
 
             WireBlockingEngine();
+            EnsureAutostartRegistered();
         }
 
         // ---------- Watchdog launch/monitor ----------
@@ -264,6 +265,46 @@ namespace BetterScreenTimePC
                 catch { }
             }
         }
+        // ---------- Autostart ----------
+
+        private const string AutostartTaskName = "BetterScreenTimePC-Autostart";
+
+        private void EnsureAutostartRegistered()
+        {
+            try
+            {
+                var query = Process.Start(new ProcessStartInfo("schtasks.exe", $"/Query /TN \"{AutostartTaskName}\"")
+                {
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                });
+                query.WaitForExit();
+                if (query.ExitCode == 0)
+                    return; // already registered
+
+                string exePath = Assembly.GetExecutingAssembly().Location;
+                string createArgs =
+                    "/Create /TN \"" + AutostartTaskName + "\"" +
+                    " /TR \"\\\"" + exePath + "\\\"\"" +
+                    " /SC ONLOGON /RL HIGHEST /F";
+
+                var create = Process.Start(new ProcessStartInfo("schtasks.exe", createArgs)
+                {
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                });
+                create.WaitForExit();
+            }
+            catch
+            {
+                
+            }
+        }
+
 
         // ---------- App list ----------
 
