@@ -133,12 +133,24 @@ namespace BetterScreenTimePC
             else if (x1 == -1) task += "-x";
             else if (x1 != 0) task += x1 + "x";
             y1 = a.Next(-5, 6);
-            if (y1 == 1) task += "+y";
+            if (y1 == 1)
+            { 
+                if(x1!=0)
+                    task += "+y";
+                else
+                    task += "y";
+            }
             else if (y1 == -1) task += "-y";
             else if (y1 > 0) task += "+" + y1 + "y";
             else if (y1 < 0) task += y1 + "y";
             z1 = a.Next(-5, 6);
-            if (z1 == 1) task += "+z";
+            if (z1 == 1)
+            { 
+                if (x1!=0 || y1!=0)
+                    task += "+z";
+                else
+                    task += "z";
+            }
             else if (z1 == -1) task += "-z";
             else if (z1 > 0) task += "+" + z1 + "z";
             else if (z1 < 0) task += z1 + "z";
@@ -149,12 +161,24 @@ namespace BetterScreenTimePC
             else if (x2 == -1) task += "-x";
             else if (x2 != 0) task += x2 + "x";
             y2 = a.Next(-5, 6);
-            if (y2 == 1) task += "+y";
+            if (y2 == 1)
+            {
+                if (x2 != 0)
+                    task += "+y";
+                else
+                    task += "y";
+            }
             else if (y2 == -1) task += "-y";
             else if (y2 > 0) task += "+" + y2 + "y";
             else if (y2 < 0) task += y2 + "y";
             z2 = a.Next(-5, 6);
-            if (z2 == 1) task += "+z";
+            if (z2 == 1)
+            {
+                if (x2 != 0 || y2 != 0)
+                    task += "+z";
+                else
+                    task += "z";
+            }
             else if (z2 == -1) task += "-z";
             else if (z2 > 0) task += "+" + z2 + "z";
             else if (z2 < 0) task += z2 + "z";
@@ -165,12 +189,24 @@ namespace BetterScreenTimePC
             else if (x3 == -1) task += "-x";
             else if (x3 != 0) task += x3 + "x";
             y3 = a.Next(-5, 6);
-            if (y3 == 1) task += "+y";
+            if (y3 == 1)
+            {
+                if (x3 != 0)
+                    task += "+y";
+                else
+                    task += "y";
+            }
             else if (y3 == -1) task += "-y";
             else if (y3 > 0) task += "+" + y3 + "y";
             else if (y3 < 0) task += y3 + "y";
             z3 = a.Next(-5, 6);
-            if (z3 == 1) task += "+z";
+            if (z3 == 1)
+            {
+                if (x3 != 0 || y3 != 0)
+                    task += "+z";
+                else
+                    task += "z";
+            }
             else if (z3 == -1) task += "-z";
             else if (z3 > 0) task += "+" + z3 + "z";
             else if (z3 < 0) task += z3 + "z";
