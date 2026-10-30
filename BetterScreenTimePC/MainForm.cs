@@ -85,7 +85,7 @@ namespace BetterScreenTimePC
 
                 try
                 {
-                   
+
                     using (var relaunchRequestEvent = new EventWaitHandle(false, EventResetMode.AutoReset, RequestRelaunchEventName))
                         relaunchRequestEvent.Set();
                 }
@@ -165,26 +165,30 @@ namespace BetterScreenTimePC
             menu.Items.Add("Exit", null, (s, e) => Close());
             _trayIcon.ContextMenuStrip = menu;
         }
-        
+
         private static Icon LoadTrayIcon()
         {
             try
             {
                 string ownDirectory = AppDomain.CurrentDomain.BaseDirectory ?? "";
-                string projectFolder = Path.GetFullPath(Path.Combine(ownDirectory, @"..\..\..\"));
-                string iconPath = Path.Combine(projectFolder+"BetterScreenTimePC\\", "tray_icon.ico");
+                string iconPath = Path.Combine(ownDirectory, "tray_icon.ico");
+
+                if (!File.Exists(iconPath))
+                {
+                    string projectFolder = Path.GetFullPath(Path.Combine(ownDirectory, @"..\..\..\"));
+                    iconPath = Path.Combine(projectFolder + "BetterScreenTimePC\\", "tray_icon.ico");
+                }
+
                 if (File.Exists(iconPath))
                     return new Icon(iconPath);
-                MessageBox.Show(iconPath);
             }
             catch
             {
-                
+                // Malformed/unreadable .ico - fall through to the default below.
             }
 
             return Icon.ExtractAssociatedIcon(Application.ExecutablePath) ?? SystemIcons.Application;
         }
-
 
         private void RestoreWindow()
         {
@@ -230,12 +234,17 @@ namespace BetterScreenTimePC
 
                 string ownExePath = Assembly.GetExecutingAssembly().Location;
                 string ownDirectory = AppDomain.CurrentDomain.BaseDirectory ?? "";
-                string projectFolder = Path.GetFullPath(Path.Combine(ownDirectory, @"..\..\..\"));
-                string watchdogPath = Path.Combine(projectFolder + "BlockerWatchdog\\bin\\Debug", WatchdogProcessName + ".exe");
+                string watchdogPath = Path.Combine(ownDirectory, WatchdogProcessName + ".exe");
 
                 if (!File.Exists(watchdogPath))
                 {
-                    Debug.WriteLine(watchdogPath);
+                    string projectFolder = Path.GetFullPath(Path.Combine(ownDirectory, @"..\..\..\"));
+                    watchdogPath = Path.Combine(projectFolder + "BlockerWatchdog\\bin\\Debug", WatchdogProcessName + ".exe");
+                }
+
+                if (!File.Exists(watchdogPath))
+                {
+                    Debug.WriteLine("Watchdog not found at expected locations: " + watchdogPath);
                     return;
                 }
 
@@ -301,7 +310,7 @@ namespace BetterScreenTimePC
             }
             catch
             {
-                
+
             }
         }
 
@@ -455,7 +464,7 @@ namespace BetterScreenTimePC
             MessageBox.Show("Blocked apps saved.", "Saved", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
-        
+
 
         private void BtnAddWebsite_Click(object sender, EventArgs e)
         {
@@ -502,7 +511,7 @@ namespace BetterScreenTimePC
                 lbWebsites.Items.Add(l.Trim());
         }
 
-        
+
 
         private void BtnSaveFocus_Click(object sender, EventArgs e)
         {
@@ -574,7 +583,7 @@ namespace BetterScreenTimePC
             }
         }
 
-        
+
 
         private void BtnAddAllowed_Click(object sender, EventArgs e)
         {
@@ -656,7 +665,7 @@ namespace BetterScreenTimePC
             lblConcentrationRemaining.Text = FormatTimeSpan(remaining);
         }
 
-        
+
 
         private void WireBlockingEngine()
         {
@@ -829,7 +838,7 @@ namespace BetterScreenTimePC
         {
             if (_realExitApproved)
             {
-                if (_trayIcon != null) _trayIcon.Visible = false; 
+                if (_trayIcon != null) _trayIcon.Visible = false;
                 _watchdogMonitorRunning = false;
                 _intentionalExitEvent?.Set();
                 _processWatcher.Stop();
@@ -870,8 +879,8 @@ namespace BetterScreenTimePC
         private void LoadOptions()
         {
             if (!File.Exists(optionsFile)) return;
-            if (!int.TryParse(File.ReadAllText(optionsFile),out option)) option = 0;
-            if (option == 0) 
+            if (!int.TryParse(File.ReadAllText(optionsFile), out option)) option = 0;
+            if (option == 0)
                 systemOfEquationsRB.Checked = true;
             if (option == 1)
                 textRetypeRB.Checked = true;

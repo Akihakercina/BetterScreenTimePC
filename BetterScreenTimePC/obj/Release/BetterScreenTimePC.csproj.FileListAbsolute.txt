@@ -1,0 +1,16 @@
+C:\Users\Aki\BetterScreenTimePC\BetterScreenTimePC\bin\Release\BetterScreenTimePC.exe.config
+C:\Users\Aki\BetterScreenTimePC\BetterScreenTimePC\bin\Release\BetterScreenTimePC.exe.manifest
+C:\Users\Aki\BetterScreenTimePC\BetterScreenTimePC\bin\Release\BetterScreenTimePC.application
+C:\Users\Aki\BetterScreenTimePC\BetterScreenTimePC\bin\Release\BetterScreenTimePC.exe
+C:\Users\Aki\BetterScreenTimePC\BetterScreenTimePC\bin\Release\BetterScreenTimePC.pdb
+C:\Users\Aki\BetterScreenTimePC\BetterScreenTimePC\obj\Release\BetterScreenTimePC.csproj.AssemblyReference.cache
+C:\Users\Aki\BetterScreenTimePC\BetterScreenTimePC\obj\Release\BetterScreenTimePC.ChallengeForm.resources
+C:\Users\Aki\BetterScreenTimePC\BetterScreenTimePC\obj\Release\BetterScreenTimePC.MainForm.resources
+C:\Users\Aki\BetterScreenTimePC\BetterScreenTimePC\obj\Release\BetterScreenTimePC.Properties.Resources.resources
+C:\Users\Aki\BetterScreenTimePC\BetterScreenTimePC\obj\Release\BetterScreenTimePC.csproj.GenerateResource.cache
+C:\Users\Aki\BetterScreenTimePC\BetterScreenTimePC\obj\Release\BetterScreenTimePC.csproj.CoreCompileInputs.cache
+C:\Users\Aki\BetterScreenTimePC\BetterScreenTimePC\obj\Release\BetterScreenTimePC.exe.manifest
+C:\Users\Aki\BetterScreenTimePC\BetterScreenTimePC\obj\Release\BetterScreenTimePC.application
+C:\Users\Aki\BetterScreenTimePC\BetterScreenTimePC\obj\Release\BetterScreenTimePC.exe
+C:\Users\Aki\BetterScreenTimePC\BetterScreenTimePC\obj\Release\BetterScreenTimePC.pdb
+C:\Users\Aki\BetterScreenTimePC\BetterScreenTimePC\obj\Release\BetterScreenTimePC.exe.config

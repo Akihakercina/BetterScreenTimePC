@@ -10,3 +10,7 @@ C:\Users\Aki\BetterScreenTimePC\BetterScreenTimePC\obj\Debug\BetterScreenTimePC.
 C:\Users\Aki\BetterScreenTimePC\BetterScreenTimePC\obj\Debug\BetterScreenTimePC.exe.config
 C:\Users\Aki\BetterScreenTimePC\BetterScreenTimePC\obj\Debug\BetterScreenTimePC.MainForm.resources
 C:\Users\Aki\BetterScreenTimePC\BetterScreenTimePC\obj\Debug\BetterScreenTimePC.ChallengeForm.resources
+C:\Users\Aki\BetterScreenTimePC\BetterScreenTimePC\bin\Debug\BetterScreenTimePC.exe.manifest
+C:\Users\Aki\BetterScreenTimePC\BetterScreenTimePC\bin\Debug\BetterScreenTimePC.application
+C:\Users\Aki\BetterScreenTimePC\BetterScreenTimePC\obj\Debug\BetterScreenTimePC.exe.manifest
+C:\Users\Aki\BetterScreenTimePC\BetterScreenTimePC\obj\Debug\BetterScreenTimePC.application

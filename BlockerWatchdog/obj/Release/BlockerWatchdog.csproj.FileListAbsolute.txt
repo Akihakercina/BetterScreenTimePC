@@ -1,0 +1,9 @@
+C:\Users\Aki\BetterScreenTimePC\BlockerWatchdog\bin\Release\BlockerWatchdog.exe.config
+C:\Users\Aki\BetterScreenTimePC\BlockerWatchdog\bin\Release\BlockerWatchdog.exe
+C:\Users\Aki\BetterScreenTimePC\BlockerWatchdog\bin\Release\BlockerWatchdog.pdb
+C:\Users\Aki\BetterScreenTimePC\BlockerWatchdog\obj\Release\BlockerWatchdog.csproj.AssemblyReference.cache
+C:\Users\Aki\BetterScreenTimePC\BlockerWatchdog\obj\Release\BlockerWatchdog.Properties.Resources.resources
+C:\Users\Aki\BetterScreenTimePC\BlockerWatchdog\obj\Release\BlockerWatchdog.csproj.GenerateResource.cache
+C:\Users\Aki\BetterScreenTimePC\BlockerWatchdog\obj\Release\BlockerWatchdog.csproj.CoreCompileInputs.cache
+C:\Users\Aki\BetterScreenTimePC\BlockerWatchdog\obj\Release\BlockerWatchdog.exe
+C:\Users\Aki\BetterScreenTimePC\BlockerWatchdog\obj\Release\BlockerWatchdog.pdb
