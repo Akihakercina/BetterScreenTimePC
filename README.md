@@ -15,6 +15,8 @@ Today,opening social media apps and doomscrolling and thus wasting hours upon ho
 When you want to open blocked app or access the blocked website you will be met with the system of equations with type of challenge you chose that you must solve to use app/website for **5 minutes** after which you will 
 need to solve it again if you want to keep using the app (for another 5 minutes).If you decide you actually don't want/need to use the app simply click "Give up" button.
 
+_Note:If you give up a challenge on the website,that website will be blocked fro 15 minutes,this is due to the bugs happening in certain cases,will fix it in the future_
+
 If you want to uncheck already checked apps you will need to solve 5 of aforementioned challenges before doing that.
 
 If you want to shorten focus timespan you will need to solve 3 of aforementioned challenges before doing that.
@@ -22,8 +24,6 @@ If you want to shorten focus timespan you will need to solve 3 of aforementioned
 If you want to close this app you will need to solve 10 of aforementioned challenges before doing that.
 
 You can however "close" the app by pressing X and the "Give up" button but its process will still run.You will see it as a tray icon (double click or right click+open to reopen interface).
-
-_It currently doesn't have tray icon as it should but I'm working on fixing it_
 
 This app also blocks NSFW (porn) websites.
 
