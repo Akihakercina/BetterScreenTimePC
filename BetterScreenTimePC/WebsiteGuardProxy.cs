@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -14,10 +15,8 @@ namespace FocusBlocker.Services
 {
     public enum ProxyMode
     {
-        /// <summary>Everything is allowed EXCEPT domains in Domains (used for listBox1, focus time).</summary>
-        Blocklist,
-        /// <summary>ONLY domains in Domains are allowed, everything else refused (used for listBox2, concentration mode).</summary>
-        Allowlist
+        Blocklist,//BlockedWebsites
+        Allowlist//ConcentrationMode
     }
 
     public class ChallengeRequestedEventArgs : EventArgs
@@ -32,24 +31,7 @@ namespace FocusBlocker.Services
         public GrantExpiredEventArgs(string domain) { Domain = domain; }
     }
 
-    /// <summary>
-    /// A local proxy that intercepts outbound web connections (HTTP + HTTPS via
-    /// CONNECT) and decides whether to let them through, based on Mode:
-    ///
-    ///   - Blocklist: domains in Domains are blocked UNLESS the user has solved
-    ///     a challenge for them recently (see GrantTemporaryAccess). Every time
-    ///     a blocked domain is requested with no active grant, ChallengeRequested
-    ///     fires ONCE (deduped) so the UI can show OverlayForm. The connection
-    ///     itself is still refused immediately - the user needs to reload the
-    ///     page after solving the challenge for the retry to succeed.
-    ///
-    ///   - Allowlist: only domains in Domains are reachable; no challenge logic
-    ///     involved (matches the original concentration-mode behavior).
-    ///
-    /// Only one instance is meant to run at a time (it owns the single system
-    /// proxy registry setting) - switch Mode/Domains on the same instance
-    /// rather than running two of these simultaneously.
-    /// </summary>
+
     public class WebsiteGuardProxy
     {
         private readonly int _port;
@@ -58,20 +40,22 @@ namespace FocusBlocker.Services
 
         private readonly ConcurrentDictionary<string, DateTime> _temporaryGrants =
             new ConcurrentDictionary<string, DateTime>();
+        private readonly ConcurrentDictionary<string, DateTime> _lockouts =
+            new ConcurrentDictionary<string, DateTime>();
         private readonly HashSet<string> _pendingChallenges = new HashSet<string>();
         private readonly object _pendingLock = new object();
+
+
+        private readonly ConcurrentDictionary<string, DateTime> _lastGrantExpiredFiredUtc =
+            new ConcurrentDictionary<string, DateTime>();
+        private static readonly TimeSpan GrantExpiredCooldown = TimeSpan.FromSeconds(3);
 
         private const string ProxyRegistryPath = @"Software\Microsoft\Windows\CurrentVersion\Internet Settings";
 
         public ProxyMode Mode { get; set; } = ProxyMode.Blocklist;
 
-        /// <summary>Interpreted according to Mode - either "domains to block" or "domains to allow".</summary>
         public List<string> Domains { get; set; } = new List<string>();
 
-        /// <summary>
-        /// Domains that are blocked in EVERY mode, with no challenge and no way
-        /// to unlock them - checked before anything else. Subdomains included.
-        /// </summary>
         public List<string> PermanentlyBlockedDomains { get; set; } = new List<string>();
 
         private bool IsPermanentlyBlocked(string lowerCaseHost)
@@ -84,15 +68,8 @@ namespace FocusBlocker.Services
 
         public bool IsRunning { get; private set; }
 
-        /// <summary>
-        /// Fires (once per domain until resolved) when, in Blocklist mode, a
-        /// blocked domain is requested with no active temporary grant.
-        /// NOTE: raised from a background thread - marshal to the UI thread
-        /// before touching any Forms.
-        /// </summary>
+       
         public event EventHandler<ChallengeRequestedEventArgs> ChallengeRequested;
-
-        /// <summary>Fired when an active grant expires while a tunnel for that domain is still open.</summary>
         public event EventHandler<GrantExpiredEventArgs> GrantExpired;
 
         public WebsiteGuardProxy(int port = 8891)
@@ -123,10 +100,7 @@ namespace FocusBlocker.Services
             DisableSystemProxy();
         }
 
-        /// <summary>
-        /// Call this after the user solves the challenge for a domain - lets
-        /// them through for the given duration without re-triggering a challenge.
-        /// </summary>
+
         public void GrantTemporaryAccess(string domain, TimeSpan duration)
         {
             domain = domain?.Trim().ToLowerInvariant();
@@ -136,7 +110,6 @@ namespace FocusBlocker.Services
             lock (_pendingLock) { _pendingChallenges.Remove(domain); }
         }
 
-        /// <summary>Call this if the user gives up on the challenge, so a future visit can re-trigger it.</summary>
         public void DismissChallenge(string domain)
         {
             domain = domain?.Trim().ToLowerInvariant();
@@ -145,6 +118,20 @@ namespace FocusBlocker.Services
             lock (_pendingLock) { _pendingChallenges.Remove(domain); }
         }
 
+        public void BlockForDuration(string domain, TimeSpan duration)
+        {
+            domain = domain?.Trim().ToLowerInvariant();
+            if (string.IsNullOrEmpty(domain)) return;
+
+            _lockouts[domain] = DateTime.UtcNow.Add(duration);
+            _temporaryGrants.TryRemove(domain, out _);
+            lock (_pendingLock) { _pendingChallenges.Remove(domain); }
+        }
+
+        private bool IsLockedOut(string matchedRootDomain)
+        {
+            return _lockouts.TryGetValue(matchedRootDomain, out DateTime until) && until > DateTime.UtcNow;
+        }
         private async Task AcceptLoopAsync(CancellationToken token)
         {
             while (!token.IsCancellationRequested)
@@ -201,21 +188,8 @@ namespace FocusBlocker.Services
                     return;
                 }
 
-                // If this connection is only open because of a temporary grant
-                // (matchedRootDomain != null means it's on the blocklist, and we
-                // only got this far because it's currently granted), watch the
-                // grant while the tunnel stays open and forcibly tear it down the
-                // moment it expires - otherwise a long-lived HTTPS connection
-                // (HTTP/2 reuse, keep-alive) could keep working indefinitely past
-                // the 5 minutes, since without this the access check only ever
-                // runs once, at connection setup.
                 using (var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(token))
                 {
-                    // Every open tunnel is watched (not just grant-dependent ones):
-                    // if the rules change while it's open - concentration mode
-                    // starts, the blocklist is edited, a grant expires - the
-                    // tunnel gets torn down so the browser must reconnect and be
-                    // re-checked against the CURRENT rules.
                     Task watchdog = WatchTunnelAsync(host, linkedCts);
 
                     try
@@ -243,27 +217,17 @@ namespace FocusBlocker.Services
                     }
                     catch
                     {
-                        // Remote unreachable, connection reset, grant expired
-                        // (cancellation), etc. - just drop it either way.
+                        
                     }
                     finally
                     {
-                        linkedCts.Cancel(); // make sure the watchdog loop exits promptly
+                        linkedCts.Cancel(); 
                         try { await watchdog; } catch { /* ignore */ }
                     }
                 }
             }
         }
 
-        /// <summary>
-        /// While a tunnel is open, re-checks once a second that its host is
-        /// still permitted under the CURRENT mode and domain list. The moment
-        /// it isn't (concentration mode just started, the blocklist changed, a
-        /// temporary grant expired), cancels linkedCts, which tears the tunnel
-        /// down and forces the browser to reconnect and be re-checked - without
-        /// this, a long-lived HTTPS connection keeps working indefinitely
-        /// because the access check otherwise only runs at connection setup.
-        /// </summary>
         private async Task WatchTunnelAsync(string host, CancellationTokenSource linkedCts)
         {
             try
@@ -275,10 +239,8 @@ namespace FocusBlocker.Services
                     if (IsHostPermittedNow(host, out string blocklistRootDomain))
                         continue;
 
-                    // Only a blocklist grant running out is worth telling the UI about
-                    // (it nudges the browser to reload); other teardowns are silent.
                     if (blocklistRootDomain != null)
-                        GrantExpired?.Invoke(this, new GrantExpiredEventArgs(blocklistRootDomain));
+                        RaiseGrantExpiredWithCooldown(blocklistRootDomain);
 
                     linkedCts.Cancel();
                     return;
@@ -287,11 +249,29 @@ namespace FocusBlocker.Services
             catch (OperationCanceledException) { /* expected on shutdown/teardown */ }
         }
 
-        /// <summary>
-        /// Side-effect-free version of the access check (never raises a
-        /// challenge). blocklistRootDomain is set only when the host is on the
-        /// blocklist and is therefore denied because no grant is active.
-        /// </summary>
+        private void RaiseGrantExpiredWithCooldown(string domain)
+        {
+            DateTime now = DateTime.UtcNow;
+            bool shouldNotify = false;
+
+            _lastGrantExpiredFiredUtc.AddOrUpdate(
+                domain,
+                addValueFactory: _ => { shouldNotify = true; return now; },
+                updateValueFactory: (_, last) =>
+                {
+                    if (now - last >= GrantExpiredCooldown)
+                    {
+                        shouldNotify = true;
+                        return now;
+                    }
+                    return last; // still within the cooldown - suppress this one, keep the original timestamp
+                });
+
+            if (shouldNotify)
+                GrantExpired?.Invoke(this, new GrantExpiredEventArgs(domain));
+        }
+
+        
         private bool IsHostPermittedNow(string host, out string blocklistRootDomain)
         {
             blocklistRootDomain = null;
@@ -313,6 +293,8 @@ namespace FocusBlocker.Services
 
             if (matched == null)
                 return true;
+            if (IsLockedOut(matched))
+                return false;
 
             bool granted = _temporaryGrants.TryGetValue(matched, out DateTime expiry) && expiry > DateTime.UtcNow;
             if (!granted)
@@ -340,14 +322,9 @@ namespace FocusBlocker.Services
 
             host = host.ToLowerInvariant();
 
-            // Built-in always-blocked sites win over everything: no challenge is
-            // raised and no grant can ever apply to them.
             if (IsPermanentlyBlocked(host))
                 return false;
 
-            // The domain from Domains that matched (root domain, not the exact
-            // requested host) - grants/challenges are tracked against THIS, so
-            // solving once covers every subdomain of the same blocked site.
             string matched = Domains.FirstOrDefault(d =>
                 host.Equals(d, StringComparison.OrdinalIgnoreCase) ||
                 host.EndsWith("." + d, StringComparison.OrdinalIgnoreCase));
@@ -361,8 +338,11 @@ namespace FocusBlocker.Services
 
             matchedRootDomain = matched;
 
+            if (IsLockedOut(matched))
+                return false; // gave up recently: refuse silently, no new challenge
+
             if (_temporaryGrants.TryGetValue(matched, out DateTime expiry) && expiry > DateTime.UtcNow)
-                return true; // still within an active grace period
+                return true;
 
             lock (_pendingLock)
             {
@@ -372,7 +352,27 @@ namespace FocusBlocker.Services
                     shouldRaiseChallenge = true;
                 }
             }
+
+            if (shouldRaiseChallenge)
+                LogChallengeTrigger(host, matched);
+
             return false;
+        }
+
+        private static void LogChallengeTrigger(string host, string matchedRootDomain)
+        {
+            try
+            {
+                string folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BlockerApp");
+                Directory.CreateDirectory(folder);
+                string logPath = Path.Combine(folder, "proxy_debug.log");
+                string line = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss} | blocked domain={matchedRootDomain} | actual host connected to={host}{Environment.NewLine}";
+                File.AppendAllText(logPath, line);
+            }
+            catch
+            {
+                // Best effort - logging must never break the proxy itself.
+            }
         }
 
         private void EnableSystemProxy()

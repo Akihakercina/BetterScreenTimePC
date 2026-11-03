@@ -46,9 +46,12 @@ Source: "BetterScreenTimePC\bin\Release\tray_icon.ico"; DestDir: "{app}"; Flags:
 [Icons]
 ; Only BetterScreenTimePC.exe gets a shortcut - BlockerWatchdog.exe has no
 ; window at all and should never be launched directly by a person.
-Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
+; IconFilename explicitly points shortcuts at the deployed .ico file, rather
+; than relying on the exe's own embedded resource icon (a separate project
+; setting from MainForm's Icon property, and easy to leave unset by mistake).
+Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\tray_icon.ico"
 Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon; IconFilename: "{app}\tray_icon.ico"
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription: "Additional shortcuts:"; Flags: unchecked

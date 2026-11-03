@@ -90,9 +90,11 @@ namespace BetterScreenTimePC
                     break;
                 case 1:
                     if(textBox1.Text.Trim()==sequence)
+                    {    
                         _closingViaButton = true;
                         this.DialogResult = DialogResult.OK;
                         this.Close();
+                    }
                     break;
                 default:
                     break;

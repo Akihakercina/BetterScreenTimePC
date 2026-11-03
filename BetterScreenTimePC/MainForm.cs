@@ -33,6 +33,7 @@ namespace BetterScreenTimePC
 
         private static readonly TimeSpan WebsiteChallengeGrantDuration = TimeSpan.FromMinutes(5);
         private static readonly TimeSpan AppChallengeGrantDuration = TimeSpan.FromMinutes(5);
+        private static readonly TimeSpan WebsiteGiveUpLockoutDuration = TimeSpan.FromMinutes(15);
 
         private readonly BindingList<InstalledProgram> _installedPrograms = new BindingList<InstalledProgram>();
         private List<BlockedWebsite> _currentBlockedWebsites = new List<BlockedWebsite>();
@@ -628,6 +629,8 @@ namespace BetterScreenTimePC
 
             int minutes = (int)nudDuration.Value;
             btnStartConcentration.Enabled = false;
+            btnAddAllowed.Enabled = false;
+            btnRemoveAllowed.Enabled = false;
 
             _focusScheduler.ManualOverrideActive = true;
             _processWatcher.IsArmed = true;
@@ -657,6 +660,8 @@ namespace BetterScreenTimePC
                 RefreshWebGuardProxyState();
                 _focusScheduler.CheckAndRaiseEvents();
                 btnStartConcentration.Enabled = true;
+                btnAddAllowed.Enabled = true;
+                btnRemoveAllowed.Enabled = true;
                 lblConcentrationRemaining.Text = "";
                 MessageBox.Show("Concentration period ended.", "Concentration", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
@@ -821,7 +826,7 @@ namespace BetterScreenTimePC
                 if (result == DialogResult.OK)
                     _webGuardProxy.GrantTemporaryAccess(e.Domain, WebsiteChallengeGrantDuration);
                 else
-                    _webGuardProxy.DismissChallenge(e.Domain);
+                    _webGuardProxy.BlockForDuration(e.Domain, WebsiteGiveUpLockoutDuration);
 
                 BrowserRefreshHelper.RefreshWindow(browserWindow);
             }
