@@ -21,6 +21,10 @@ If you want to shorten focus timespan you will need to solve 3 of aforementioned
 
 If you want to close this app you will need to solve 10 of aforementioned challenges before doing that.
 
+You can however "close" the app by pressing X and the "Give up" button but its process will still run.You will see it as a tray icon (double click or right click+open to reopen interface).
+
+_It currently doesn't have tray icon as it should but I'm working on fixing it_
+
 This app also blocks NSFW (porn) websites.
 
 **Advertisement:**
